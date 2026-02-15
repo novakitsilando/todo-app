@@ -44,7 +44,7 @@ export const saveTodos = (todos: Todo[]): void => {
   }
 };
 
-export const deleteTodo = (id: string): void => {
+export const toggleTodo = (id: string): Todo => {
   const todos = getTodos();
   const index = todos.findIndex((todo) => todo.id === id);
 
@@ -52,6 +52,14 @@ export const deleteTodo = (id: string): void => {
     throw new TodoNotFoundError();
   }
 
-  const updated = [...todos.slice(0, index), ...todos.slice(index + 1)];
-  saveTodos(updated);
+  const updatedTodo: Todo = {
+    ...todos[index],
+    completed: !todos[index].completed,
+  };
+
+  const updatedTodos = [...todos];
+  updatedTodos[index] = updatedTodo;
+  saveTodos(updatedTodos);
+
+  return updatedTodo;
 };

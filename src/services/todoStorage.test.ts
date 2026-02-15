@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { deleteTodo, getTodos, saveTodos, TodoNotFoundError } from "./todoStorage";
+import {
+  getTodos,
+  saveTodos,
+  StorageFullError,
+  TodoNotFoundError,
+  toggleTodo,
+} from "./todoStorage";
 import type { Todo } from "@/src/types/todo";
 
 class LocalStorageMock {
@@ -27,56 +33,72 @@ const makeTodo = (overrides: Partial<Todo> = {}): Todo => ({
   ...overrides,
 });
 
-describe("deleteTodo", () => {
+describe("toggleTodo", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.stubGlobal("localStorage", new LocalStorageMock());
   });
 
-  it("deletes correct todo by ID", () => {
-    saveTodos([makeTodo({ id: "a" }), makeTodo({ id: "b" })]);
+  it("toggles incomplete todo to complete", () => {
+    saveTodos([makeTodo({ id: "a", completed: false })]);
 
-    deleteTodo("a");
+    const updated = toggleTodo("a");
 
-    expect(getTodos()).toEqual([makeTodo({ id: "b" })]);
+    expect(updated.completed).toBe(true);
   });
 
-  it("keeps remaining todos unchanged and in original order", () => {
-    const first = makeTodo({ id: "1", title: "First" });
-    const second = makeTodo({ id: "2", title: "Second" });
-    const third = makeTodo({ id: "3", title: "Third" });
+  it("toggles complete todo back to incomplete", () => {
+    saveTodos([makeTodo({ id: "a", completed: true })]);
 
-    saveTodos([first, second, third]);
+    const updated = toggleTodo("a");
 
-    deleteTodo("2");
+    expect(updated.completed).toBe(false);
+  });
 
-    expect(getTodos()).toEqual([first, third]);
+  it("persists updated state to localStorage", () => {
+    saveTodos([makeTodo({ id: "a", completed: false })]);
+
+    toggleTodo("a");
+
+    expect(getTodos()[0].completed).toBe(true);
+  });
+
+  it("keeps other todos unchanged", () => {
+    const first = makeTodo({ id: "a", title: "First", completed: false });
+    const second = makeTodo({ id: "b", title: "Second", completed: true });
+    saveTodos([first, second]);
+
+    toggleTodo("a");
+
+    const todos = getTodos();
+    expect(todos[0].completed).toBe(true);
+    expect(todos[1]).toEqual(second);
   });
 
   it("throws TodoNotFoundError for non-existent ID", () => {
-    saveTodos([makeTodo({ id: "1" })]);
+    saveTodos([makeTodo({ id: "a" })]);
 
-    expect(() => deleteTodo("missing")).toThrow(TodoNotFoundError);
+    expect(() => toggleTodo("missing")).toThrow(TodoNotFoundError);
   });
 
-  it("deleting last todo results in empty array in localStorage", () => {
-    saveTodos([makeTodo({ id: "1" })]);
+  it("handles rapid toggles on same todo correctly", () => {
+    saveTodos([makeTodo({ id: "a", completed: false })]);
 
-    deleteTodo("1");
+    toggleTodo("a");
+    toggleTodo("a");
+    toggleTodo("a");
 
-    expect(getTodos()).toEqual([]);
+    expect(getTodos()[0].completed).toBe(true);
   });
 
-  it("handles rapid sequential deletes correctly", () => {
-    saveTodos([
-      makeTodo({ id: "1", title: "One" }),
-      makeTodo({ id: "2", title: "Two" }),
-      makeTodo({ id: "3", title: "Three" }),
-    ]);
+  it("throws StorageFullError on quota exceeded", () => {
+    saveTodos([makeTodo({ id: "a", completed: false })]);
+    const quotaError = new DOMException("quota exceeded", "QuotaExceededError");
 
-    deleteTodo("1");
-    deleteTodo("3");
+    vi.spyOn(localStorage, "setItem").mockImplementation(() => {
+      throw quotaError;
+    });
 
-    expect(getTodos()).toEqual([makeTodo({ id: "2", title: "Two" })]);
+    expect(() => toggleTodo("a")).toThrow(StorageFullError);
   });
 });
