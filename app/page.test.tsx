@@ -16,74 +16,76 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-describe("delete integration", () => {
-  it("deletes a todo and removes it from list", () => {
-    seedTodos([
-      { id: "1", title: "First", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
-      { id: "2", title: "Second", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
-    ]);
+describe("toggle integration", () => {
+  it("toggles todo to complete with visual style", () => {
+    seedTodos([{ id: "1", title: "Task", completed: false, createdAt: "2026-01-01T00:00:00.000Z" }]);
 
     render(<Home />);
-    fireEvent.click(screen.getAllByLabelText("Delete todo")[0]);
+    fireEvent.click(screen.getByLabelText("Toggle Task"));
 
-    expect(screen.queryByText("First")).not.toBeInTheDocument();
-    expect(screen.getByText("Second")).toBeInTheDocument();
+    const text = screen.getByText("Task");
+    expect(text.className).toContain("line-through");
+    expect(text.className).toContain("text-gray-500");
   });
 
-  it("delete persists across refresh", () => {
-    seedTodos([
-      { id: "1", title: "First", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
-      { id: "2", title: "Second", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
-    ]);
+  it("toggles complete todo back to incomplete", () => {
+    seedTodos([{ id: "1", title: "Task", completed: true, createdAt: "2026-01-01T00:00:00.000Z" }]);
+
+    render(<Home />);
+    fireEvent.click(screen.getByLabelText("Toggle Task"));
+
+    const text = screen.getByText("Task");
+    expect(text.className).toContain("text-gray-900");
+  });
+
+  it("toggle persists across refresh", () => {
+    seedTodos([{ id: "1", title: "Task", completed: false, createdAt: "2026-01-01T00:00:00.000Z" }]);
 
     const first = render(<Home />);
-    fireEvent.click(screen.getAllByLabelText("Delete todo")[0]);
+    fireEvent.click(screen.getByLabelText("Toggle Task"));
     first.unmount();
 
     render(<Home />);
-    expect(screen.queryByText("First")).not.toBeInTheDocument();
-    expect(screen.getByText("Second")).toBeInTheDocument();
+    expect(screen.getByText("Task").className).toContain("line-through");
   });
 
-  it("deleting todo in edit mode removes it and exits edit", () => {
+  it("item position unchanged after toggle", () => {
     seedTodos([
       { id: "1", title: "First", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
+      { id: "2", title: "Second", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
     ]);
+
+    render(<Home />);
+    fireEvent.click(screen.getByLabelText("Toggle First"));
+
+    const items = screen.getAllByRole("listitem");
+    expect(items[0]).toHaveTextContent("First");
+    expect(items[1]).toHaveTextContent("Second");
+  });
+
+  it("toggle during edit mode does not affect edit text", () => {
+    seedTodos([{ id: "1", title: "Task", completed: false, createdAt: "2026-01-01T00:00:00.000Z" }]);
 
     render(<Home />);
     fireEvent.click(screen.getByLabelText("Edit todo"));
-    expect(screen.getByLabelText("Edit todo title")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByLabelText("Delete todo"));
+    const input = screen.getByLabelText("Edit todo title");
+    fireEvent.change(input, { target: { value: "Unsaved draft" } });
+    fireEvent.click(screen.getByLabelText("Toggle Task"));
 
-    expect(screen.queryByLabelText("Edit todo title")).not.toBeInTheDocument();
-    expect(screen.getByText("No todos yet — add one above!")).toBeInTheDocument();
+    expect(screen.getByLabelText("Edit todo title")).toHaveValue("Unsaved draft");
   });
 
-  it("shows empty state when last todo is deleted", () => {
-    seedTodos([
-      { id: "1", title: "Only", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
-    ]);
+  it("rapid toggles end with correct final state", () => {
+    seedTodos([{ id: "1", title: "Task", completed: false, createdAt: "2026-01-01T00:00:00.000Z" }]);
 
     render(<Home />);
-    fireEvent.click(screen.getByLabelText("Delete todo"));
+    const checkbox = screen.getByLabelText("Toggle Task") as HTMLInputElement;
 
-    expect(screen.getByText("No todos yet — add one above!")).toBeInTheDocument();
-  });
+    fireEvent.click(checkbox);
+    fireEvent.click(checkbox);
+    fireEvent.click(checkbox);
 
-  it("rapid sequential deletes all succeed", () => {
-    seedTodos([
-      { id: "1", title: "One", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
-      { id: "2", title: "Two", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
-      { id: "3", title: "Three", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
-    ]);
-
-    render(<Home />);
-
-    fireEvent.click(screen.getAllByLabelText("Delete todo")[0]);
-    fireEvent.click(screen.getAllByLabelText("Delete todo")[0]);
-    fireEvent.click(screen.getAllByLabelText("Delete todo")[0]);
-
-    expect(screen.getByText("No todos yet — add one above!")).toBeInTheDocument();
+    expect(checkbox.checked).toBe(true);
   });
 });

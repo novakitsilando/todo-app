@@ -52,14 +52,14 @@ export const toggleTodo = (id: string): Todo => {
     throw new TodoNotFoundError();
   }
 
-  const updatedTodo: Todo = {
+  const updated: Todo = {
     ...todos[index],
     completed: !todos[index].completed,
   };
 
-  const updatedTodos = [...todos];
-  updatedTodos[index] = updatedTodo;
-  saveTodos(updatedTodos);
+  const next = [...todos];
+  next[index] = updated;
+  saveTodos(next);
 
-  return updatedTodo;
+  return updated;
 };

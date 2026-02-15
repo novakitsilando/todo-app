@@ -3,10 +3,8 @@
 import { useEffect, useState } from "react";
 
 import TodoItem from "@/src/components/TodoItem";
-import { deleteTodo, getTodos } from "@/src/services/todoStorage";
+import { getTodos, toggleTodo } from "@/src/services/todoStorage";
 import type { Todo } from "@/src/types/todo";
-
-const EMPTY_STATE = "No todos yet — add one above!";
 
 export default function Home() {
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -16,20 +14,16 @@ export default function Home() {
     setTodos(getTodos());
   }, []);
 
-  const handleDelete = (id: string) => {
-    deleteTodo(id);
-    setTodos((current) => current.filter((todo) => todo.id !== id));
-    if (editingId === id) {
-      setEditingId(null);
-    }
+  const handleToggle = (id: string) => {
+    const updated = toggleTodo(id);
+    setTodos((current) =>
+      current.map((todo) => (todo.id === id ? { ...todo, completed: updated.completed } : todo)),
+    );
   };
 
   return (
     <main>
       <h1>Todo App</h1>
-
-      {todos.length === 0 ? <p>{EMPTY_STATE}</p> : null}
-
       <ul>
         {todos.map((todo) => (
           <TodoItem
@@ -39,8 +33,8 @@ export default function Home() {
             onStartEdit={setEditingId}
             onEdit={() => undefined}
             onCancelEdit={() => setEditingId(null)}
-            onToggle={() => undefined}
-            onDelete={handleDelete}
+            onToggle={handleToggle}
+            onDelete={() => undefined}
           />
         ))}
       </ul>
