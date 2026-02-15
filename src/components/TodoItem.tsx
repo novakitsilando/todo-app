@@ -15,8 +15,6 @@ interface TodoItemProps {
   error?: string | null;
 }
 
-const MAX_LENGTH = 300;
-
 export default function TodoItem({
   todo,
   isEditing,
@@ -37,14 +35,12 @@ export default function TodoItem({
 
   const submitEdit = () => {
     const trimmed = draftTitle.trim();
-    if (!trimmed) {
-      return;
-    }
+    if (!trimmed) return;
 
     onEdit(todo.id, trimmed);
   };
 
-  const handleEditKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
       submitEdit();
       return;
@@ -64,15 +60,14 @@ export default function TodoItem({
         onChange={() => onToggle(todo.id)}
         aria-label={`Toggle ${todo.title}`}
       />
-
       {isEditing ? (
         <div>
           <input
             aria-label="Edit todo title"
             value={draftTitle}
             onChange={(event) => setDraftTitle(event.target.value)}
-            onKeyDown={handleEditKeyDown}
-            maxLength={MAX_LENGTH}
+            onKeyDown={handleKeyDown}
+            maxLength={300}
           />
           <button type="button" onClick={submitEdit}>
             Save
@@ -86,7 +81,7 @@ export default function TodoItem({
           >
             Cancel
           </button>
-          {draftTitle.length > 250 ? <p>{`${draftTitle.length}/${MAX_LENGTH}`}</p> : null}
+          {draftTitle.length > 250 ? <p>{`${draftTitle.length}/300`}</p> : null}
           {error ? (
             <p role="alert" style={{ color: "red" }}>
               {error}
@@ -101,7 +96,6 @@ export default function TodoItem({
           </button>
         </>
       )}
-
       <button type="button" aria-label="Delete todo" onClick={() => onDelete(todo.id)}>
         Delete
       </button>
