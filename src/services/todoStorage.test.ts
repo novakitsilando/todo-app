@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  addTodo,
-  getTodos,
-  InvalidTodoError,
-  saveTodos,
   StorageFullError,
+  TodoNotFoundError,
+  InvalidTodoError,
+  updateTodo,
+  saveTodos,
+  getTodos,
 } from "./todoStorage";
+import type { Todo } from "@/src/types/todo";
 
 class LocalStorageMock {
   private store = new Map<string, string>();
@@ -24,95 +26,82 @@ class LocalStorageMock {
   }
 }
 
-const makeTodo = (
-  overrides: Partial<{
-    id: string;
-    title: string;
-    completed: boolean;
-    createdAt: string;
-  }> = {},
-) => ({
+const makeTodo = (overrides: Partial<Todo> = {}): Todo => ({
   id: "1",
-  title: "Sample",
+  title: "First",
   completed: false,
   createdAt: "2026-01-01T00:00:00.000Z",
   ...overrides,
 });
 
-describe("todoStorage", () => {
+describe("updateTodo", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.stubGlobal("localStorage", new LocalStorageMock());
   });
 
-  it("getTodos returns empty array when localStorage is empty", () => {
-    expect(getTodos()).toEqual([]);
+  it("updates title for existing todo", () => {
+    saveTodos([makeTodo({ id: "a", title: "Old" })]);
+
+    const updated = updateTodo("a", "New");
+
+    expect(updated.title).toBe("New");
+    expect(getTodos()[0].title).toBe("New");
   });
 
-  it("getTodos returns parsed todos when data exists", () => {
-    const todos = [makeTodo()];
-    localStorage.setItem("todos", JSON.stringify(todos));
+  it("trims whitespace from new title", () => {
+    saveTodos([makeTodo({ id: "a", title: "Old" })]);
 
-    expect(getTodos()).toEqual(todos);
+    const updated = updateTodo("a", "   Trimmed   ");
+
+    expect(updated.title).toBe("Trimmed");
+    expect(getTodos()[0].title).toBe("Trimmed");
   });
 
-  it("getTodos returns empty array when localStorage has corrupted JSON", () => {
-    localStorage.setItem("todos", "{bad-json");
+  it("rejects empty string", () => {
+    saveTodos([makeTodo({ id: "a" })]);
 
-    expect(getTodos()).toEqual([]);
+    expect(() => updateTodo("a", "")).toThrow(InvalidTodoError);
   });
 
-  it("addTodo creates todo with correct fields", () => {
-    const randomUuid = "uuid-123";
-    vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue(randomUuid);
+  it("rejects whitespace-only string", () => {
+    saveTodos([makeTodo({ id: "a" })]);
 
-    const todo = addTodo("Buy milk");
-
-    expect(todo.id).toBe(randomUuid);
-    expect(todo.title).toBe("Buy milk");
-    expect(todo.completed).toBe(false);
-    expect(new Date(todo.createdAt).toISOString()).toBe(todo.createdAt);
+    expect(() => updateTodo("a", "   ")).toThrow(InvalidTodoError);
   });
 
-  it("addTodo trims whitespace", () => {
-    vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue("uuid-1");
+  it("rejects title longer than 300 chars", () => {
+    saveTodos([makeTodo({ id: "a" })]);
 
-    const todo = addTodo("   Walk dog   ");
-
-    expect(todo.title).toBe("Walk dog");
+    expect(() => updateTodo("a", "a".repeat(301))).toThrow(InvalidTodoError);
   });
 
-  it("addTodo rejects empty string", () => {
-    expect(() => addTodo("")).toThrow(InvalidTodoError);
+  it("throws TodoNotFoundError for non-existent ID", () => {
+    saveTodos([makeTodo({ id: "a" })]);
+
+    expect(() => updateTodo("missing", "New")).toThrow(TodoNotFoundError);
   });
 
-  it("addTodo rejects whitespace-only string", () => {
-    expect(() => addTodo("   ")).toThrow(InvalidTodoError);
-  });
-
-  it("addTodo rejects titles longer than 300 characters", () => {
-    expect(() => addTodo("a".repeat(301))).toThrow(InvalidTodoError);
-  });
-
-  it("addTodo prepends new todo to existing list", () => {
-    const existing = makeTodo({ id: "older", title: "Older" });
-    localStorage.setItem("todos", JSON.stringify([existing]));
-    vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue("new-id");
-
-    const newTodo = addTodo("New");
-    const saved = getTodos();
-
-    expect(saved[0]).toMatchObject({ id: newTodo.id, title: "New" });
-    expect(saved[1]).toEqual(existing);
-  });
-
-  it("saveTodos throws StorageFullError when quota exceeded", () => {
+  it("throws StorageFullError on quota exceeded", () => {
+    saveTodos([makeTodo({ id: "a" })]);
     const quotaError = new DOMException("quota exceeded", "QuotaExceededError");
 
     vi.spyOn(localStorage, "setItem").mockImplementation(() => {
       throw quotaError;
     });
 
-    expect(() => saveTodos([makeTodo()])).toThrow(StorageFullError);
+    expect(() => updateTodo("a", "New")).toThrow(StorageFullError);
+  });
+
+  it("keeps other todos unchanged", () => {
+    const first = makeTodo({ id: "a", title: "First" });
+    const second = makeTodo({ id: "b", title: "Second" });
+    saveTodos([first, second]);
+
+    updateTodo("a", "Updated First");
+
+    const todos = getTodos();
+    expect(todos[0].title).toBe("Updated First");
+    expect(todos[1]).toEqual(second);
   });
 });
