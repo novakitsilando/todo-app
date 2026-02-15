@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /**
  * Represents a single todo item in the application.
  */
@@ -21,5 +22,11 @@ export interface Todo {
   /**
    * Creation timestamp in ISO 8601 string format.
    */
+=======
+export interface Todo {
+  id: string;
+  title: string;
+  completed: boolean;
+>>>>>>> b4c7c5c (feat: integrate AddTodo with localStorage on main page (#10))
   createdAt: string;
 }
