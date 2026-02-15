@@ -1,0 +1,52 @@
+"use client";
+
+import TodoItem from "./TodoItem";
+import type { Todo } from "@/src/types/todo";
+
+interface TodoListProps {
+  todos: Todo[];
+  editingId: string | null;
+  onStartEdit: (id: string) => void;
+  onEdit: (id: string, newTitle: string) => void;
+  onCancelEdit: () => void;
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+  editError?: string | null;
+}
+
+const EMPTY_STATE = "No todos yet — add one above!";
+
+export default function TodoList({
+  todos,
+  editingId,
+  onStartEdit,
+  onEdit,
+  onCancelEdit,
+  onToggle,
+  onDelete,
+  editError = null,
+}: TodoListProps) {
+  if (todos.length === 0) {
+    return <p className="rounded-md border border-dashed border-gray-300 p-4 text-sm text-gray-600">{EMPTY_STATE}</p>;
+  }
+
+  return (
+    <ul className="flex w-full min-w-0 flex-col gap-2">
+      {todos.map((todo) => (
+        <TodoItem
+          key={todo.id}
+          todo={todo}
+          isEditing={editingId === todo.id}
+          onStartEdit={onStartEdit}
+          onEdit={onEdit}
+          onCancelEdit={onCancelEdit}
+          onToggle={onToggle}
+          onDelete={onDelete}
+          error={editingId === todo.id ? editError : null}
+        />
+      ))}
+    </ul>
+  );
+}
+
+export type { TodoListProps };
