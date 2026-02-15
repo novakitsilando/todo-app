@@ -14,20 +14,9 @@ interface TodoListProps {
   editError?: string | null;
 }
 
-const EMPTY_STATE = "No todos yet — add one above!";
-
-export default function TodoList({
-  todos,
-  editingId,
-  onStartEdit,
-  onEdit,
-  onCancelEdit,
-  onToggle,
-  onDelete,
-  editError = null,
-}: TodoListProps) {
+export default function TodoList({ todos, editingId, onStartEdit, onEdit, onCancelEdit, onToggle, onDelete, editError = null }: TodoListProps) {
   if (todos.length === 0) {
-    return <p className="rounded-md border border-dashed border-gray-300 p-4 text-sm text-gray-600">{EMPTY_STATE}</p>;
+    return <p>No todos yet — add one above!</p>;
   }
 
   return (
