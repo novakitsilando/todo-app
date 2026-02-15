@@ -2,50 +2,78 @@
 
 import { useEffect, useState } from "react";
 
-import AddTodo from "@/src/components/AddTodo";
+import TodoItem from "@/src/components/TodoItem";
 import {
-  addTodo,
   getTodos,
   InvalidTodoError,
   StorageFullError,
+  TodoNotFoundError,
+  updateTodo,
 } from "@/src/services/todoStorage";
 import type { Todo } from "@/src/types/todo";
 
 export default function Home() {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
 
   useEffect(() => {
     setTodos(getTodos());
   }, []);
 
-  const handleAdd = (title: string) => {
+  const handleStartEdit = (id: string) => {
+    setEditingId(id);
+    setEditError(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditError(null);
+  };
+
+  const handleEdit = (id: string, newTitle: string) => {
     try {
-      const created = addTodo(title);
-      setTodos((prev) => [created, ...prev]);
-      setError(null);
-    } catch (err) {
-      if (err instanceof StorageFullError) {
-        setError("Storage is full. Please remove some todos and try again.");
+      const updatedTodo = updateTodo(id, newTitle);
+      setTodos((current) =>
+        current.map((todo) => (todo.id === updatedTodo.id ? updatedTodo : todo)),
+      );
+      setEditingId(null);
+      setEditError(null);
+    } catch (error) {
+      if (error instanceof StorageFullError) {
+        setEditError("Storage is full. Please remove some todos and try again.");
         return;
       }
 
-      if (err instanceof InvalidTodoError) {
+      if (error instanceof InvalidTodoError || error instanceof TodoNotFoundError) {
+        setEditingId(null);
+        setEditError(null);
+        setTodos(getTodos());
         return;
       }
 
-      setError("Failed to add todo. Please try again.");
+      setEditingId(null);
+      setEditError("Failed to update todo.");
+      setTodos(getTodos());
     }
   };
 
   return (
     <main>
       <h1>Todo App</h1>
-      <AddTodo onAdd={handleAdd} error={error} />
-
       <ul>
         {todos.map((todo) => (
-          <li key={todo.id}>{todo.title}</li>
+          <TodoItem
+            key={todo.id}
+            todo={todo}
+            isEditing={editingId === todo.id}
+            onStartEdit={handleStartEdit}
+            onEdit={handleEdit}
+            onCancelEdit={handleCancelEdit}
+            onToggle={() => undefined}
+            onDelete={() => undefined}
+            error={editingId === todo.id ? editError : null}
+          />
         ))}
       </ul>
     </main>

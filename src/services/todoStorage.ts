@@ -1,7 +1,6 @@
 import type { Todo } from "@/src/types/todo";
 
 const STORAGE_KEY = "todos";
-const MAX_TITLE_LENGTH = 300;
 
 export class StorageFullError extends Error {
   constructor(message = "Unable to save todos: localStorage quota exceeded") {
@@ -33,15 +32,8 @@ const isQuotaExceededError = (error: unknown): boolean =>
 
 const validateTitle = (title: string): string => {
   const trimmed = title.trim();
-
-  if (!trimmed) {
-    throw new InvalidTodoError("Todo title cannot be empty");
-  }
-
-  if (trimmed.length > MAX_TITLE_LENGTH) {
-    throw new InvalidTodoError(`Todo title cannot exceed ${MAX_TITLE_LENGTH} characters`);
-  }
-
+  if (!trimmed) throw new InvalidTodoError("Todo title cannot be empty");
+  if (trimmed.length > 300) throw new InvalidTodoError("Todo title cannot exceed 300 characters");
   return trimmed;
 };
 
@@ -61,24 +53,9 @@ export const saveTodos = (todos: Todo[]): void => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
   } catch (error) {
-    if (isQuotaExceededError(error)) {
-      throw new StorageFullError();
-    }
-
+    if (isQuotaExceededError(error)) throw new StorageFullError();
     throw error;
   }
-};
-
-export const addTodo = (title: string): Todo => {
-  const todo: Todo = {
-    id: crypto.randomUUID(),
-    title: validateTitle(title),
-    completed: false,
-    createdAt: new Date().toISOString(),
-  };
-
-  saveTodos([todo, ...getTodos()]);
-  return todo;
 };
 
 export const updateTodo = (id: string, newTitle: string): Todo => {
@@ -86,18 +63,11 @@ export const updateTodo = (id: string, newTitle: string): Todo => {
   const todos = getTodos();
   const index = todos.findIndex((todo) => todo.id === id);
 
-  if (index === -1) {
-    throw new TodoNotFoundError();
-  }
+  if (index === -1) throw new TodoNotFoundError();
 
-  const updatedTodo: Todo = {
-    ...todos[index],
-    title,
-  };
-
+  const updatedTodo: Todo = { ...todos[index], title };
   const updatedTodos = [...todos];
   updatedTodos[index] = updatedTodo;
-
   saveTodos(updatedTodos);
 
   return updatedTodo;
