@@ -39,10 +39,7 @@ export const saveTodos = (todos: Todo[]): void => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
   } catch (error) {
-    if (isQuotaExceededError(error)) {
-      throw new StorageFullError();
-    }
-
+    if (isQuotaExceededError(error)) throw new StorageFullError();
     throw error;
   }
 };
@@ -55,6 +52,6 @@ export const deleteTodo = (id: string): void => {
     throw new TodoNotFoundError();
   }
 
-  const updatedTodos = [...todos.slice(0, index), ...todos.slice(index + 1)];
-  saveTodos(updatedTodos);
+  const updated = [...todos.slice(0, index), ...todos.slice(index + 1)];
+  saveTodos(updated);
 };

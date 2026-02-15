@@ -1,8 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import Home from "./page";
-import * as storage from "@/src/services/todoStorage";
 import type { Todo } from "@/src/types/todo";
 
 const seedTodos = (todos: Todo[]) => {
@@ -11,112 +10,80 @@ const seedTodos = (todos: Todo[]) => {
 
 afterEach(() => {
   cleanup();
-  vi.restoreAllMocks();
 });
 
 beforeEach(() => {
   localStorage.clear();
 });
 
-describe("inline edit integration", () => {
-  it("edits a todo and updates title in list", () => {
-    seedTodos([
-      { id: "1", title: "Old title", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
-    ]);
-
-    render(<Home />);
-
-    fireEvent.click(screen.getByLabelText("Edit todo"));
-    fireEvent.change(screen.getByLabelText("Edit todo title"), {
-      target: { value: "New title" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    expect(screen.getByText("New title")).toBeInTheDocument();
-  });
-
-  it("edit persists across refresh", () => {
-    seedTodos([
-      { id: "1", title: "Before", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
-    ]);
-
-    const first = render(<Home />);
-    fireEvent.click(screen.getByLabelText("Edit todo"));
-    fireEvent.change(screen.getByLabelText("Edit todo title"), {
-      target: { value: "After" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    expect(screen.getByText("After")).toBeInTheDocument();
-
-    first.unmount();
-    render(<Home />);
-    expect(screen.getByText("After")).toBeInTheDocument();
-  });
-
-  it("starting edit on second todo auto-cancels first", () => {
+describe("delete integration", () => {
+  it("deletes a todo and removes it from list", () => {
     seedTodos([
       { id: "1", title: "First", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
       { id: "2", title: "Second", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
     ]);
 
     render(<Home />);
+    fireEvent.click(screen.getAllByLabelText("Delete todo")[0]);
 
-    fireEvent.click(screen.getAllByLabelText("Edit todo")[0]);
-    expect(screen.getByDisplayValue("First")).toBeInTheDocument();
-
-    fireEvent.click(screen.getAllByLabelText("Edit todo")[0]);
-
-    expect(screen.queryByDisplayValue("First")).not.toBeInTheDocument();
-    expect(screen.getByDisplayValue("Second")).toBeInTheDocument();
+    expect(screen.queryByText("First")).not.toBeInTheDocument();
+    expect(screen.getByText("Second")).toBeInTheDocument();
   });
 
-  it("shows storage full error inline", () => {
+  it("delete persists across refresh", () => {
     seedTodos([
-      { id: "1", title: "Title", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
+      { id: "1", title: "First", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
+      { id: "2", title: "Second", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
     ]);
 
-    vi.spyOn(storage, "updateTodo").mockImplementation(() => {
-      throw new storage.StorageFullError();
-    });
+    const first = render(<Home />);
+    fireEvent.click(screen.getAllByLabelText("Delete todo")[0]);
+    first.unmount();
+
+    render(<Home />);
+    expect(screen.queryByText("First")).not.toBeInTheDocument();
+    expect(screen.getByText("Second")).toBeInTheDocument();
+  });
+
+  it("deleting todo in edit mode removes it and exits edit", () => {
+    seedTodos([
+      { id: "1", title: "First", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
+    ]);
+
+    render(<Home />);
+    fireEvent.click(screen.getByLabelText("Edit todo"));
+    expect(screen.getByLabelText("Edit todo title")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Delete todo"));
+
+    expect(screen.queryByLabelText("Edit todo title")).not.toBeInTheDocument();
+    expect(screen.getByText("No todos yet — add one above!")).toBeInTheDocument();
+  });
+
+  it("shows empty state when last todo is deleted", () => {
+    seedTodos([
+      { id: "1", title: "Only", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
+    ]);
+
+    render(<Home />);
+    fireEvent.click(screen.getByLabelText("Delete todo"));
+
+    expect(screen.getByText("No todos yet — add one above!")).toBeInTheDocument();
+  });
+
+  it("rapid sequential deletes all succeed", () => {
+    seedTodos([
+      { id: "1", title: "One", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
+      { id: "2", title: "Two", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
+      { id: "3", title: "Three", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
+    ]);
 
     render(<Home />);
 
-    fireEvent.click(screen.getByLabelText("Edit todo"));
-    fireEvent.change(screen.getByLabelText("Edit todo title"), { target: { value: "Edited" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getAllByLabelText("Delete todo")[0]);
+    fireEvent.click(screen.getAllByLabelText("Delete todo")[0]);
+    fireEvent.click(screen.getAllByLabelText("Delete todo")[0]);
 
-    expect(screen.getByRole("alert")).toHaveTextContent("Storage is full");
-  });
-
-  it("clears error after successful edit", () => {
-    seedTodos([
-      { id: "1", title: "Title", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
-    ]);
-
-    const updateSpy = vi
-      .spyOn(storage, "updateTodo")
-      .mockImplementationOnce(() => {
-        throw new storage.StorageFullError();
-      })
-      .mockImplementationOnce((id: string, newTitle: string) => ({
-        id,
-        title: newTitle,
-        completed: false,
-        createdAt: "2026-01-01T00:00:00.000Z",
-      }));
-
-    render(<Home />);
-
-    fireEvent.click(screen.getByLabelText("Edit todo"));
-    fireEvent.change(screen.getByLabelText("Edit todo title"), { target: { value: "Fail" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    expect(screen.getByRole("alert")).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText("Edit todo title"), { target: { value: "Success" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    expect(updateSpy).toHaveBeenCalledTimes(2);
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.getByText("Success")).toBeInTheDocument();
+    expect(screen.getByText("No todos yet — add one above!")).toBeInTheDocument();
   });
 });

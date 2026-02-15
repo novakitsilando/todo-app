@@ -28,28 +28,18 @@ export default function TodoItem({
   const [draftTitle, setDraftTitle] = useState(todo.title);
 
   useEffect(() => {
-    if (isEditing) {
-      setDraftTitle(todo.title);
-    }
+    if (isEditing) setDraftTitle(todo.title);
   }, [isEditing, todo.title]);
 
-  const submitEdit = () => {
+  const submit = () => {
     const trimmed = draftTitle.trim();
     if (!trimmed) return;
-
     onEdit(todo.id, trimmed);
   };
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      submitEdit();
-      return;
-    }
-
-    if (event.key === "Escape") {
-      setDraftTitle(todo.title);
-      onCancelEdit();
-    }
+  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") submit();
+    if (event.key === "Escape") onCancelEdit();
   };
 
   return (
@@ -66,22 +56,15 @@ export default function TodoItem({
             aria-label="Edit todo title"
             value={draftTitle}
             onChange={(event) => setDraftTitle(event.target.value)}
-            onKeyDown={handleKeyDown}
+            onKeyDown={onKeyDown}
             maxLength={300}
           />
-          <button type="button" onClick={submitEdit}>
+          <button type="button" onClick={submit}>
             Save
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setDraftTitle(todo.title);
-              onCancelEdit();
-            }}
-          >
+          <button type="button" onClick={onCancelEdit}>
             Cancel
           </button>
-          {draftTitle.length > 250 ? <p>{`${draftTitle.length}/300`}</p> : null}
           {error ? (
             <p role="alert" style={{ color: "red" }}>
               {error}
