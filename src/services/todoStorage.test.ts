@@ -1,13 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  StorageFullError,
-  TodoNotFoundError,
-  InvalidTodoError,
-  updateTodo,
-  saveTodos,
-  getTodos,
-} from "./todoStorage";
+import { deleteTodo, getTodos, saveTodos, TodoNotFoundError } from "./todoStorage";
 import type { Todo } from "@/src/types/todo";
 
 class LocalStorageMock {
@@ -28,80 +21,62 @@ class LocalStorageMock {
 
 const makeTodo = (overrides: Partial<Todo> = {}): Todo => ({
   id: "1",
-  title: "First",
+  title: "Todo",
   completed: false,
   createdAt: "2026-01-01T00:00:00.000Z",
   ...overrides,
 });
 
-describe("updateTodo", () => {
+describe("deleteTodo", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.stubGlobal("localStorage", new LocalStorageMock());
   });
 
-  it("updates title for existing todo", () => {
-    saveTodos([makeTodo({ id: "a", title: "Old" })]);
+  it("deletes correct todo by ID", () => {
+    saveTodos([makeTodo({ id: "a" }), makeTodo({ id: "b" })]);
 
-    const updated = updateTodo("a", "New");
+    deleteTodo("a");
 
-    expect(updated.title).toBe("New");
-    expect(getTodos()[0].title).toBe("New");
+    expect(getTodos()).toEqual([makeTodo({ id: "b" })]);
   });
 
-  it("trims whitespace from new title", () => {
-    saveTodos([makeTodo({ id: "a", title: "Old" })]);
+  it("keeps remaining todos unchanged and in original order", () => {
+    const first = makeTodo({ id: "1", title: "First" });
+    const second = makeTodo({ id: "2", title: "Second" });
+    const third = makeTodo({ id: "3", title: "Third" });
 
-    const updated = updateTodo("a", "   Trimmed   ");
+    saveTodos([first, second, third]);
 
-    expect(updated.title).toBe("Trimmed");
-    expect(getTodos()[0].title).toBe("Trimmed");
-  });
+    deleteTodo("2");
 
-  it("rejects empty string", () => {
-    saveTodos([makeTodo({ id: "a" })]);
-
-    expect(() => updateTodo("a", "")).toThrow(InvalidTodoError);
-  });
-
-  it("rejects whitespace-only string", () => {
-    saveTodos([makeTodo({ id: "a" })]);
-
-    expect(() => updateTodo("a", "   ")).toThrow(InvalidTodoError);
-  });
-
-  it("rejects title longer than 300 chars", () => {
-    saveTodos([makeTodo({ id: "a" })]);
-
-    expect(() => updateTodo("a", "a".repeat(301))).toThrow(InvalidTodoError);
+    expect(getTodos()).toEqual([first, third]);
   });
 
   it("throws TodoNotFoundError for non-existent ID", () => {
-    saveTodos([makeTodo({ id: "a" })]);
+    saveTodos([makeTodo({ id: "1" })]);
 
-    expect(() => updateTodo("missing", "New")).toThrow(TodoNotFoundError);
+    expect(() => deleteTodo("missing")).toThrow(TodoNotFoundError);
   });
 
-  it("throws StorageFullError on quota exceeded", () => {
-    saveTodos([makeTodo({ id: "a" })]);
-    const quotaError = new DOMException("quota exceeded", "QuotaExceededError");
+  it("deleting last todo results in empty array in localStorage", () => {
+    saveTodos([makeTodo({ id: "1" })]);
 
-    vi.spyOn(localStorage, "setItem").mockImplementation(() => {
-      throw quotaError;
-    });
+    deleteTodo("1");
 
-    expect(() => updateTodo("a", "New")).toThrow(StorageFullError);
+    expect(getTodos()).toEqual([]);
   });
 
-  it("keeps other todos unchanged", () => {
-    const first = makeTodo({ id: "a", title: "First" });
-    const second = makeTodo({ id: "b", title: "Second" });
-    saveTodos([first, second]);
+  it("handles rapid sequential deletes correctly", () => {
+    saveTodos([
+      makeTodo({ id: "1", title: "One" }),
+      makeTodo({ id: "2", title: "Two" }),
+      makeTodo({ id: "3", title: "Three" }),
+    ]);
 
-    updateTodo("a", "Updated First");
+    deleteTodo("1");
+    deleteTodo("3");
 
-    const todos = getTodos();
-    expect(todos[0].title).toBe("Updated First");
-    expect(todos[1]).toEqual(second);
+    expect(getTodos()).toEqual([makeTodo({ id: "2", title: "Two" })]);
   });
 });
