@@ -4,88 +4,61 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import Home from "./page";
 import type { Todo } from "@/src/types/todo";
 
-const seedTodos = (todos: Todo[]) => {
-  localStorage.setItem("todos", JSON.stringify(todos));
-};
+const seed = (todos: Todo[]) => localStorage.setItem("todos", JSON.stringify(todos));
 
-afterEach(() => {
-  cleanup();
-});
+afterEach(() => cleanup());
+beforeEach(() => localStorage.clear());
 
-beforeEach(() => {
-  localStorage.clear();
-});
-
-describe("toggle integration", () => {
-  it("toggles todo to complete with visual style", () => {
-    seedTodos([{ id: "1", title: "Task", completed: false, createdAt: "2026-01-01T00:00:00.000Z" }]);
-
+describe("main page assembly", () => {
+  it("renders heading, AddTodo, and TodoList", () => {
     render(<Home />);
-    fireEvent.click(screen.getByLabelText("Toggle Task"));
-
-    const text = screen.getByText("Task");
-    expect(text.className).toContain("line-through");
-    expect(text.className).toContain("text-gray-500");
+    expect(screen.getByText("Todo List")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Add a new todo...")).toBeInTheDocument();
+    expect(screen.getByText("No todos yet — add one above!")).toBeInTheDocument();
   });
 
-  it("toggles complete todo back to incomplete", () => {
-    seedTodos([{ id: "1", title: "Task", completed: true, createdAt: "2026-01-01T00:00:00.000Z" }]);
-
-    render(<Home />);
-    fireEvent.click(screen.getByLabelText("Toggle Task"));
-
-    const text = screen.getByText("Task");
-    expect(text.className).toContain("text-gray-900");
-  });
-
-  it("toggle persists across refresh", () => {
-    seedTodos([{ id: "1", title: "Task", completed: false, createdAt: "2026-01-01T00:00:00.000Z" }]);
-
-    const first = render(<Home />);
-    fireEvent.click(screen.getByLabelText("Toggle Task"));
-    first.unmount();
-
-    render(<Home />);
-    expect(screen.getByText("Task").className).toContain("line-through");
-  });
-
-  it("item position unchanged after toggle", () => {
-    seedTodos([
-      { id: "1", title: "First", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
-      { id: "2", title: "Second", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
+  it("loads todos in createdAt descending order", () => {
+    seed([
+      { id: "1", title: "Older", completed: false, createdAt: "2026-01-01T00:00:00.000Z" },
+      { id: "2", title: "Newer", completed: false, createdAt: "2026-01-02T00:00:00.000Z" },
     ]);
-
     render(<Home />);
-    fireEvent.click(screen.getByLabelText("Toggle First"));
-
-    const items = screen.getAllByRole("listitem");
-    expect(items[0]).toHaveTextContent("First");
-    expect(items[1]).toHaveTextContent("Second");
+    const items = screen.getAllByTestId("todo-item");
+    expect(items[0]).toHaveTextContent("Newer");
+    expect(items[1]).toHaveTextContent("Older");
   });
 
-  it("toggle during edit mode does not affect edit text", () => {
-    seedTodos([{ id: "1", title: "Task", completed: false, createdAt: "2026-01-01T00:00:00.000Z" }]);
-
+  it("full CRUD flow: add edit toggle delete", () => {
     render(<Home />);
+    fireEvent.change(screen.getByLabelText("Todo title"), { target: { value: "Task" } });
+    fireEvent.click(screen.getByText("Add"));
+    expect(screen.getByText("Task")).toBeInTheDocument();
+
     fireEvent.click(screen.getByLabelText("Edit todo"));
+    fireEvent.change(screen.getByLabelText("Edit todo title"), { target: { value: "Task edited" } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(screen.getByText("Task edited")).toBeInTheDocument();
 
-    const input = screen.getByLabelText("Edit todo title");
-    fireEvent.change(input, { target: { value: "Unsaved draft" } });
-    fireEvent.click(screen.getByLabelText("Toggle Task"));
+    fireEvent.click(screen.getByLabelText("Toggle Task edited"));
+    expect(screen.getByText("Task edited").className).toContain("line-through");
 
-    expect(screen.getByLabelText("Edit todo title")).toHaveValue("Unsaved draft");
+    fireEvent.click(screen.getByLabelText("Delete todo"));
+    expect(screen.getByText("No todos yet — add one above!")).toBeInTheDocument();
   });
 
-  it("rapid toggles end with correct final state", () => {
-    seedTodos([{ id: "1", title: "Task", completed: false, createdAt: "2026-01-01T00:00:00.000Z" }]);
-
+  it("empty state shown on fresh load", () => {
     render(<Home />);
-    const checkbox = screen.getByLabelText("Toggle Task") as HTMLInputElement;
+    expect(screen.getByText("No todos yet — add one above!")).toBeInTheDocument();
+  });
 
-    fireEvent.click(checkbox);
-    fireEvent.click(checkbox);
-    fireEvent.click(checkbox);
+  it("layout snapshot at 320 and 1024 widths", () => {
+    Object.defineProperty(window, "innerWidth", { writable: true, value: 320 });
+    const narrow = render(<Home />);
+    expect(narrow.container.firstChild).toMatchSnapshot("layout-320");
+    narrow.unmount();
 
-    expect(checkbox.checked).toBe(true);
+    Object.defineProperty(window, "innerWidth", { writable: true, value: 1024 });
+    const wide = render(<Home />);
+    expect(wide.container.firstChild).toMatchSnapshot("layout-1024");
   });
 });

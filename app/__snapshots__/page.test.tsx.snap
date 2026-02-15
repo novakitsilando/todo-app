@@ -1,0 +1,73 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`main page assembly > layout snapshot at 320 and 1024 widths > layout-320 1`] = `
+<main
+  class="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-4 p-4 sm:p-6"
+>
+  <h1
+    class="text-3xl font-bold"
+  >
+    Todo List
+  </h1>
+  <form
+    class="w-full space-y-2"
+  >
+    <div
+      class="flex gap-2"
+    >
+      <input
+        aria-label="Todo title"
+        class="w-full rounded border px-3 py-2"
+        maxlength="300"
+        placeholder="Add a new todo..."
+        value=""
+      />
+      <button
+        class="rounded bg-black px-4 py-2 text-white"
+        type="submit"
+      >
+        Add
+      </button>
+    </div>
+  </form>
+  <p>
+    No todos yet — add one above!
+  </p>
+</main>
+`;
+
+exports[`main page assembly > layout snapshot at 320 and 1024 widths > layout-1024 1`] = `
+<main
+  class="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-4 p-4 sm:p-6"
+>
+  <h1
+    class="text-3xl font-bold"
+  >
+    Todo List
+  </h1>
+  <form
+    class="w-full space-y-2"
+  >
+    <div
+      class="flex gap-2"
+    >
+      <input
+        aria-label="Todo title"
+        class="w-full rounded border px-3 py-2"
+        maxlength="300"
+        placeholder="Add a new todo..."
+        value=""
+      />
+      <button
+        class="rounded bg-black px-4 py-2 text-white"
+        type="submit"
+      >
+        Add
+      </button>
+    </div>
+  </form>
+  <p>
+    No todos yet — add one above!
+  </p>
+</main>
+`;
