@@ -9,13 +9,6 @@ export class StorageFullError extends Error {
   }
 }
 
-export class InvalidTodoError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "InvalidTodoError";
-  }
-}
-
 export class TodoNotFoundError extends Error {
   constructor(message = "Todo not found") {
     super(message);
@@ -29,13 +22,6 @@ const isQuotaExceededError = (error: unknown): boolean =>
     error.code === 1014 ||
     error.name === "QuotaExceededError" ||
     error.name === "NS_ERROR_DOM_QUOTA_REACHED");
-
-const validateTitle = (title: string): string => {
-  const trimmed = title.trim();
-  if (!trimmed) throw new InvalidTodoError("Todo title cannot be empty");
-  if (trimmed.length > 300) throw new InvalidTodoError("Todo title cannot exceed 300 characters");
-  return trimmed;
-};
 
 export const getTodos = (): Todo[] => {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -53,22 +39,22 @@ export const saveTodos = (todos: Todo[]): void => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
   } catch (error) {
-    if (isQuotaExceededError(error)) throw new StorageFullError();
+    if (isQuotaExceededError(error)) {
+      throw new StorageFullError();
+    }
+
     throw error;
   }
 };
 
-export const updateTodo = (id: string, newTitle: string): Todo => {
-  const title = validateTitle(newTitle);
+export const deleteTodo = (id: string): void => {
   const todos = getTodos();
   const index = todos.findIndex((todo) => todo.id === id);
 
-  if (index === -1) throw new TodoNotFoundError();
+  if (index === -1) {
+    throw new TodoNotFoundError();
+  }
 
-  const updatedTodo: Todo = { ...todos[index], title };
-  const updatedTodos = [...todos];
-  updatedTodos[index] = updatedTodo;
+  const updatedTodos = [...todos.slice(0, index), ...todos.slice(index + 1)];
   saveTodos(updatedTodos);
-
-  return updatedTodo;
 };
